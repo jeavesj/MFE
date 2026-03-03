@@ -21,6 +21,8 @@ import atom3d.util.formats as fo
 from utils.protein_utils import featurize_as_graph
 from utils.openbabel_featurizer import Featurizer
 import argparse
+import time
+import pandas as pd
 
 
 seed = 1
@@ -350,16 +352,18 @@ def load_protein_graph(protein_path, item):
     return protein_graph
 
 
-def process_raw_data(dataset_path, processed_file, protein_list, index_path):
+def process_raw_data(dataset_path, processed_file, protein_list, index_path, t_out_path=None):
     res = GetPDBDict(Path=index_path)
 
     G_list = []
+    t_prep_list = []
     tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False )
     model = BertModel.from_pretrained("Rostlab/prot_bert")
 
     fe = pipeline('feature-extraction', model=model, tokenizer=tokenizer,device=0)
 
     for item in tqdm(protein_list):
+        t0 = time.time()
         score = res[item]
         lig_file_name = dataset_path + item + '/' + item + '_ligand.mol2'
         pocket_file_name = dataset_path + item + '/' + item + '_pocket.pdb'
@@ -373,10 +377,15 @@ def process_raw_data(dataset_path, processed_file, protein_list, index_path):
             G.append(protein_atoms)
             G.append(protein_graph)
             G_list.append(G)
+            t_prep_list.append({'pdbid': item, 't_prep_s': time.time()-t0})
     print('sample num: ', len(G_list))
     with open(processed_file, 'wb') as f:
         pickle.dump(G_list, f)
     f.close()
+    
+    if t_out_path is not None:
+        t_df = pd.DataFrame(t_prep_list)
+        t_df.to_csv(t_out_path)
 
 def GetPDBList(Path):
     with open(Path, 'rb') as f:
@@ -389,17 +398,24 @@ def GetPDBList(Path):
     return res
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--raw_data_path', type=str, default='./data/PdbBind/pdb_files/', help='Path to input protein and ligand files in PDBbind file structure.')
     parser.add_argument('--index_path', default='./data/PdbBind/index/INDEX_general_PL_data.2016', help='Path to input data indices from PDBbind')
-    parser.add_argument('--out_path', default='./data/train.pkl', help='Path to write graphs to')
+    parser.add_argument('--out_pkl_path', default='./data/train.pkl', help='Path to write graphs to')
+    parser.add_argument('--out_times_path', required=False, help='Path to write prep times csv to')
+    
     args = parser.parse_args()
     
     protein_list = GetPDBList(Path=args.index_path)
 
-    process_raw_data(args.raw_data_path, args.out_path, protein_list, args.index_path)
+    if args.out_times_path is not None:
+        process_raw_data(args.raw_data_path, args.out_pkl_path, protein_list, args.index_path, args.out_times_path)
+    else:
+        process_raw_data(args.raw_data_path, args.out_pkl_path, protein_list, args.index_path)
 
+if __name__ == '__main__':
+    main()
 
 
 
