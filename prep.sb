@@ -1,0 +1,25 @@
+#!/bin/bash --login
+#SBATCH --job-name=mfe_prep
+#SBATCH --time=03:59:00
+#SBATCH --mem=32G
+#SBATCH --gpus=v100:1
+#SBATCH --cpus-per-task=2
+#SBATCH --output=/mnt/scratch/jeaves/MFE/logs/%x_%A_%a.out
+#SBATCH --error=/mnt/scratch/jeaves/MFE/logs/%x_%A_%a.err
+
+#set -euo pipefail
+
+module purge
+module load Miniforge3
+conda activate MFE
+
+DATA_DIR="/mnt/scratch/jeaves/v2016/"
+INDEX_FILE="${DATA_DIR}/index/INDEX_general_PL_data.2016"
+OUT_DIR="/mnt/scratch/jeaves/MFE/data"
+
+OUT_PKL="${OUT_DIR}/train.pkl"
+OUT_CSV="${OUT_DIR}/prep_times.csv"
+
+SCRIPT_PATH="/mnt/scratch/jeaves/MFE/process.py"
+
+python3 process.py --raw_data_path "$DATA_DIR" --index_path "$INDEX_FILE" --out_pkl_path "$OUT_PKL" --out_times_path "$OUT_CSV"
