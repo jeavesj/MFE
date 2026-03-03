@@ -20,6 +20,8 @@ from Bio.PDB import *
 import atom3d.util.formats as fo 
 from utils.protein_utils import featurize_as_graph
 from utils.openbabel_featurizer import Featurizer
+import argparse
+
 
 seed = 1
 torch.manual_seed(seed)
@@ -348,12 +350,12 @@ def load_protein_graph(protein_path, item):
     return protein_graph
 
 
-def process_raw_data(dataset_path, processed_file, protein_list):
-    res = GetPDBDict(Path='./data/PdbBind/index/INDEX_general_PL_data.2016')
+def process_raw_data(dataset_path, processed_file, protein_list, index_path):
+    res = GetPDBDict(Path=index_path)
 
     G_list = []
-    tokenizer = BertTokenizer.from_pretrained("./Rostlab/prot_bert", do_lower_case=False )
-    model = BertModel.from_pretrained("./Rostlab/prot_bert")
+    tokenizer = BertTokenizer.from_pretrained("Rostlab/prot_bert", do_lower_case=False )
+    model = BertModel.from_pretrained("Rostlab/prot_bert")
 
     fe = pipeline('feature-extraction', model=model, tokenizer=tokenizer,device=0)
 
@@ -388,11 +390,15 @@ def GetPDBList(Path):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--raw_data_path', type=str, default='./data/PdbBind/pdb_files/', help='Path to input protein and ligand files in PDBbind file structure.')
+    parser.add_argument('--index_path', default='./data/PdbBind/index/INDEX_general_PL_data.2016', help='Path to input data indices from PDBbind')
+    parser.add_argument('--out_path', default='./data/train.pkl', help='Path to write graphs to')
+    args = parser.parse_args()
+    
+    protein_list = GetPDBList(Path=args.index_path)
 
-    raw_data_path = './data/PdbBind/pdb_files/'
-    protein_list = GetPDBList(Path='./data/PdbBind/index/INDEX_general_PL_data.2016')
-
-    process_raw_data(raw_data_path, './data/train.pkl', protein_list)
+    process_raw_data(args.raw_data_path, args.out_path, protein_list, args.index_path)
 
 
 
